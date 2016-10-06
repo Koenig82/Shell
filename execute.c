@@ -12,16 +12,16 @@
 
 int dupPipe(int pip[2], int end, int destfd){
 
-    if(dup2(pip[end],destfd) < 0){
+    if(dup2(end,destfd) < 0){
         perror("dup2 error:");
-        exit(EXIT_FAILURE);
+        return -1;
     }
 
-    if(close(pip[end]) < 0){
+    if(close(end) < 0){
         perror("close error:");
-        exit(EXIT_FAILURE);
-    };
-    return 0;
+        return -1;
+    }
+    return destfd;
 
 }
 
