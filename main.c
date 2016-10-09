@@ -119,38 +119,42 @@ void multiple_commands_example(void) {
 
 int main(void){
 
-    char *line;
-    command parsed[102];
-    int commands;
+    char *inputLine;
+
+    command comLine[102];
+
     size_t line_size;
+
     int fd[2];
-    int in = 0;
-    int i;
+
+    int nrOfCommands;
+    int in = STDIN_FILENO;
+    int index;
     int pid;
 
     do{
         fprintf(stderr, "mish%% ");
         fflush(stderr);
-        getline(&line, &line_size, stdin);
-        if(!strncmp(line, "exit", 4)){
+        getline(&inputLine, &line_size, stdin);
+        if(!strncmp(inputLine, "exit", 4)){
             break;
         }
-        commands = parse(line, parsed);
+        nrOfCommands = parse(inputLine, comLine);
 
-        for(i = 0; i < commands-1; i++){
+        for(index = 0; index < nrOfCommands-1; index++){
 
             pipe(fd);
-            pid = forkProcess(fd, in, fd[1], &parsed[i]);
+            pid = forkProcess(fd, in, fd[1], &comLine[index]);
             close (fd [1]);
 
             in = fd[0];
         }
         pid = fork();
         if (pid==0){
-            if (in != 0){
-                dup2 (in, 0);
+            if (in != STDIN_FILENO){
+                dup2 (in, STDIN_FILENO);
             }
-            execvp(parsed[i].argv[0], parsed[i].argv);
+            execvp(comLine[index].argv[0], comLine[index].argv);
             fprintf(stderr,"no such command");
             exit(EXIT_FAILURE);
         }

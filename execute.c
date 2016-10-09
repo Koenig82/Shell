@@ -37,4 +37,5 @@ int dupPipe(int pip[2], int end, int destfd){
  */
 int redirect(char *filename, int flags, int destfd){
 
+
 }
