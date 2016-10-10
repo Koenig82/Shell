@@ -119,9 +119,9 @@ void multiple_commands_example(void) {
 
 int main(void){
 
-    char *inputLine;
+    char* inputLine;
 
-    command comLine[102];
+    command comLine[MAXCOMMANDS + 1];
 
     size_t line_size;
 
@@ -139,16 +139,20 @@ int main(void){
         if(!strncmp(inputLine, "exit", 4)){
             break;
         }
+        //parse the inputline into an array of commands
         nrOfCommands = parse(inputLine, comLine);
-
+        //for each command exept the last one:
         for(index = 0; index < nrOfCommands-1; index++){
-
+            //create a pipe with 2 filedescriptors and fork
             pipe(fd);
+            //the first one will take input from stdin and the rest from the
+            //read-end of the pipe
             pid = forkProcess(fd, in, fd[1], &comLine[index]);
             close (fd [1]);
-
+            //set in to the read-end on the latest pipe for the next child
             in = fd[0];
         }
+        //the last and/or only command
         pid = fork();
         if (pid==0){
             if (in != STDIN_FILENO){
@@ -170,14 +174,17 @@ int main(void){
 int forkProcess (int fd[2], int in, int out, command *cmd) {
     pid_t pid;
     if((pid = fork()) == 0) {
-
+        //if in is not stdin (at the first child it is)
         if (in != STDIN_FILENO) {
+            //connect stdin to in
             dupPipe(fd, in, STDIN_FILENO);
         }
+        //if out is not stdout
         if (out != STDOUT_FILENO) {
+            //connect stdout to out
             dupPipe(fd, out, STDOUT_FILENO);
         }
-
+        //execute the command
         execvp(cmd->argv[0], cmd->argv);
         fprintf(stderr,"no such command");
         exit(EXIT_FAILURE);

@@ -11,12 +11,12 @@
 #include <unistd.h>
 
 int dupPipe(int pip[2], int end, int destfd){
-
+    //duplicates the end-fd to destfd
     if(dup2(end,destfd) < 0){
         perror("dup2 error:");
         return -1;
     }
-
+    //close the end fd
     if(close(end) < 0){
         perror("close error:");
         return -1;
@@ -36,6 +36,7 @@ int dupPipe(int pip[2], int end, int destfd){
  * Returns:	-1 on error, else destfd
  */
 int redirect(char *filename, int flags, int destfd){
+
 
 
 }
