@@ -143,6 +143,7 @@ int main(void){
         nrOfCommands = parse(inputLine, comLine);
         //for each command exept the last one:
         for(index = 0; index < nrOfCommands-1; index++){
+            //close the unsused filedescriptor from the last child
             if(index > 0){
                 if(close(fd[0]) < 0){
                     perror("close error:");
