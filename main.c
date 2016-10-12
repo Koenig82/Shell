@@ -143,6 +143,12 @@ int main(void){
         nrOfCommands = parse(inputLine, comLine);
         //for each command exept the last one:
         for(index = 0; index < nrOfCommands-1; index++){
+            if(index > 0){
+                if(close(fd[0]) < 0){
+                    perror("close error:");
+                    exit(EXIT_FAILURE);
+                }
+            }
             //create a pipe with 2 filedescriptors and fork
             pipe(fd);
             //the first one will take input from stdin and the rest from the
