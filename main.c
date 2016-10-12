@@ -136,9 +136,9 @@ int main(void){
         fprintf(stderr, "mish%% ");
         fflush(stderr);
         getline(&inputLine, &line_size, stdin);
-        if(!strncmp(inputLine, "exit", 4)){
+        /*if(!strncmp(inputLine, "exit", 4)){
             break;
-        }
+        }*/
         //parse the inputline into an array of commands
         nrOfCommands = parse(inputLine, comLine);
         //for each command exept the last one:
@@ -146,17 +146,29 @@ int main(void){
             //create a pipe with 2 filedescriptors and fork
             pipe(fd);
             //the first one will take input from stdin and the rest from the
-            //read-end of the pipe
+            //write-end of the pipe
+            printf("%d,%d ", fd[0], fd[1]);
+            fflush(stdout);
             pid = forkProcess(fd, in, fd[1], &comLine[index]);
-            close (fd [1]);
+            if(close(fd[1]) < 0){
+                perror("close error:");
+                exit(EXIT_FAILURE);
+            }
             //set in to the read-end on the latest pipe for the next child
             in = fd[0];
+
         }
-        //the last and/or only command
+        //the last or only command
         pid = fork();
         if (pid==0){
+            //if in is not stdin
             if (in != STDIN_FILENO){
+                //duplicate stdin to in and close in
                 dup2 (in, STDIN_FILENO);
+            }
+            if(close(in) < 0){
+                perror("close error:");
+                exit(EXIT_FAILURE);
             }
             execvp(comLine[index].argv[0], comLine[index].argv);
             fprintf(stderr,"no such command");
@@ -164,6 +176,8 @@ int main(void){
         }
 
         //parent process
+        /*close(fd[0]);
+        close(fd[1]);*/
         wait(0);
 
     }while(1);
@@ -174,14 +188,14 @@ int main(void){
 int forkProcess (int fd[2], int in, int out, command *cmd) {
     pid_t pid;
     if((pid = fork()) == 0) {
-        //if in is not stdin (at the first child it is)
+        //if in is not stdin. ( at the first child it is)
         if (in != STDIN_FILENO) {
-            //connect stdin to in
+            //duplicate stdin to in and close in
             dupPipe(fd, in, STDIN_FILENO);
         }
         //if out is not stdout
         if (out != STDOUT_FILENO) {
-            //connect stdout to out
+            //duplicate stdout to out and close out
             dupPipe(fd, out, STDOUT_FILENO);
         }
         //execute the command
