@@ -136,11 +136,34 @@ int main(void){
         fprintf(stderr, "mish%% ");
         fflush(stderr);
         getline(&inputLine, &line_size, stdin);
-        /*if(!strncmp(inputLine, "exit", 4)){
-            break;
-        }*/
         //parse the inputline into an array of commands
         nrOfCommands = parse(inputLine, comLine);
+        //execute internal commands
+        //enter command
+        if(!strcmp(inputLine, "\n")){
+            continue;
+        }
+        //exit command
+        if(!strncmp(inputLine, "exit", 4)){
+            break;
+        }
+        //cd command
+        if(strcmp(comLine[0].argv[0],"cd") == 0){
+            if(chdir(comLine[0].argv[1])!=0){
+                fprintf(stderr, "cd: %s :", comLine[0].argv[1]);
+                perror("");
+            }
+            continue;
+        }
+        //echo command
+        if(strcmp(comLine[0].argv[0],"echo") == 0) {
+            for (int i = 1; i < comLine[0].argc; i++) {
+                fprintf(stdout, "%s ", comLine[0].argv[i]);
+            }
+            fprintf(stdout,"\n");
+            fflush(stdout);
+            continue;
+        }
         //for each command exept the last one:
         for(index = 0; index < nrOfCommands-1; index++){
             //close the unsused filedescriptor from the last child
@@ -153,7 +176,7 @@ int main(void){
             //create a pipe with 2 filedescriptors and fork
             pipe(fd);
             //the first one will take input from stdin and the rest from the
-            //write-end of the pipe
+            //read-end of the pipe
             printf("%d,%d ", fd[0], fd[1]);
             fflush(stdout);
             pid = forkProcess(fd, in, fd[1], &comLine[index]);
@@ -178,13 +201,11 @@ int main(void){
                 exit(EXIT_FAILURE);
             }
             execvp(comLine[index].argv[0], comLine[index].argv);
-            fprintf(stderr,"no such command");
+            fprintf(stderr,"no such command\n");
             exit(EXIT_FAILURE);
         }
 
         //parent process
-        /*close(fd[0]);
-        close(fd[1]);*/
         wait(0);
 
     }while(1);
