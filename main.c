@@ -116,6 +116,7 @@ void multiple_commands_example(void) {
     printf("\n");
     print_command(grep);
 }
+int forks[MAXCOMMANDS + 1];
 
 int main(void){
 
@@ -165,6 +166,7 @@ int main(void){
             fflush(stdout);
             continue;
         }
+        //execute external commands:
         //for each command exept the last one:
         for(index = 0; index < nrOfCommands-1; index++){
             //close the unsused filedescriptor from the last child
@@ -179,6 +181,7 @@ int main(void){
             //the first one will take input from stdin and the rest from the
             //read-end of the pipe
             pid = forkProcess(fd, in, fd[1], &comLine[index]);
+            forks[index + 1] = pid;
             if(close(fd[1]) < 0){
                 perror("close error:");
                 exit(EXIT_FAILURE);
@@ -189,6 +192,7 @@ int main(void){
         }
         //the last or only command
         pid = fork();
+        forks[0] = pid;
         if (pid==0){
             //if in is not stdin
             if (in != STDIN_FILENO){
@@ -200,13 +204,13 @@ int main(void){
                 exit(EXIT_FAILURE);
             }
             execvp(comLine[index].argv[0], comLine[index].argv);
-            fprintf(stderr,"no such command\n");
-            fflush(stderr);
             exit(EXIT_FAILURE);
         }
 
         //parent process
-        wait(0);
+        for(int i = 0; i <= nrOfCommands; i++){
+            waitpid(forks[i], 0, WUNTRACED);
+        }
 
     }while(1);
 
@@ -228,8 +232,6 @@ int forkProcess (int fd[2], int in, int out, command *cmd) {
         }
         //execute the command
         execvp(cmd->argv[0], cmd->argv);
-        fprintf(stderr,"no such command");
-        fflush(stderr);
         exit(EXIT_FAILURE);
     }
 
