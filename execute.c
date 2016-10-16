@@ -9,6 +9,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <errno.h>
 
 int dupPipe(int pip[2], int end, int destfd){
     //duplicates the end-fd to destfd
@@ -21,6 +24,8 @@ int dupPipe(int pip[2], int end, int destfd){
         perror("close error:");
         return -1;
     }
+    fprintf(stderr, "Closing fd %d\n", end);
+    fflush(stderr);
     return destfd;
 
 }
@@ -37,6 +42,38 @@ int dupPipe(int pip[2], int end, int destfd){
  */
 int redirect(char *filename, int flags, int destfd){
 
+    if (flags == 0){
 
+        int read = open (filename, O_RDONLY);
 
+        if (read < 0){
+
+            perror(filename);
+
+        }else{
+
+            return read;
+        }
+
+    }else{
+
+        if(access(filename, W_OK) == 0){
+
+            errno = EEXIST;
+            perror("write error");
+
+        }else{
+
+            int write = open(filename, O_WRONLY | O_CREAT | O_EXCL, S_IRWXU );
+
+            if (write < 0){
+                perror(filename);
+            }
+            else{
+
+                return write;
+            }
+        }
+    }
+    return -1;
 }

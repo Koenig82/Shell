@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <bits/stdio.h>
+#include <stdbool.h>
 #include "parser.h"
 #include "execute.h"
 
@@ -130,8 +131,11 @@ int main(void){
 
     int nrOfCommands;
     int in = STDIN_FILENO;
-    int index;
+    int index = 0;
     int pid;
+    int pidstatus;
+
+    bool redirected = false;
 
     do{
         fflush(stderr);
@@ -159,8 +163,8 @@ int main(void){
         }
         //echo command
         if(strcmp(comLine[0].argv[0],"echo") == 0) {
-            for (int i = 1; i < comLine[0].argc; i++) {
-                fprintf(stdout, "%s ", comLine[0].argv[i]);
+            for (index = 1; index < comLine[0].argc; index++) {
+                fprintf(stdout, "%s ", comLine[0].argv[index]);
             }
             fprintf(stdout,"\n");
             fflush(stdout);
@@ -170,18 +174,31 @@ int main(void){
         //for each command exept the last one:
         for(index = 0; index < nrOfCommands-1; index++){
             //close the unsused filedescriptor from the last child
-            if(index > 0){
+            /*if(index > 0){
                 if(close(fd[0]) < 0){
                     perror("close error:");
                     exit(EXIT_FAILURE);
                 }
+            }*/
+            if(index == 0 && comLine[0].infile != NULL){
+                in = redirect(comLine[0].infile, 0, STDIN_FILENO);
             }
+
             //create a pipe with 2 filedescriptors and fork
             pipe(fd);
+
             //the first one will take input from stdin and the rest from the
             //read-end of the pipe
             pid = forkProcess(fd, in, fd[1], &comLine[index]);
-            forks[index + 1] = pid;
+            if(in != 0){
+                if(close(in) < 0){
+                    perror("close error:");
+                    exit(EXIT_FAILURE);
+                }
+            }
+            forks[index] = pid;
+            fprintf(stderr, "Closing fd out %d\n", fd[1]);
+            fflush(stderr);
             if(close(fd[1]) < 0){
                 perror("close error:");
                 exit(EXIT_FAILURE);
@@ -192,25 +209,40 @@ int main(void){
         }
         //the last or only command
         pid = fork();
-        forks[0] = pid;
+        forks[nrOfCommands - 1] = pid;
         if (pid==0){
+            if(nrOfCommands == 1 && comLine[0].infile != NULL) {
+                in = redirect(comLine[0].infile, 0, STDIN_FILENO);
+                //redirected = true;
+            }
+           else if(comLine[index].outfile != NULL) {
+              fd[1] = redirect(comLine[index].outfile, 1, STDOUT_FILENO);
+
+                    //duplicate in to stdin and close in
+                    dup2 (fd[1], STDOUT_FILENO);
+                    close(fd[1]);
+
+           }
+
             //if in is not stdin
             if (in != STDIN_FILENO){
-                //duplicate stdin to in and close in
+                //duplicate in to stdin and close in
                 dup2 (in, STDIN_FILENO);
             }
-            if(close(in) < 0){
+            fprintf(stderr, "Closing fd at end%d\n", in);
+            fflush(stderr);
+            if(nrOfCommands != 1 && close(in) < 0){
                 perror("close error:");
                 exit(EXIT_FAILURE);
             }
             execvp(comLine[index].argv[0], comLine[index].argv);
             exit(EXIT_FAILURE);
         }
-
         //parent process
-        for(int i = 0; i <= nrOfCommands; i++){
-            waitpid(forks[i], 0, WUNTRACED);
+        for(index = 0; index < nrOfCommands; index++){
+            waitpid(forks[index], &pidstatus, WUNTRACED);
         }
+
 
     }while(1);
 
@@ -230,6 +262,7 @@ int forkProcess (int fd[2], int in, int out, command *cmd) {
             //duplicate stdout to out and close out
             dupPipe(fd, out, STDOUT_FILENO);
         }
+
         //execute the command
         execvp(cmd->argv[0], cmd->argv);
         exit(EXIT_FAILURE);
