@@ -1,17 +1,18 @@
 #define _GNU_SOURCE
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
-#include <sys/wait.h>
+#include <stdio.h>
+#include <signal.h>
+#include <string.h>
+#include <stdlib.h>
+#include <wait.h>
 #include "parser.h"
 #include "execute.h"
 #include "sighant.h"
 
-
 int forkProcess (int fd[2], int in, int out, command *cmd);
 
-int forks[MAXCOMMANDS + 1];
+pid_t forks[MAXCOMMANDS + 1];
+void signalCatcher(int);
 
 int main(void){
 
@@ -26,20 +27,32 @@ int main(void){
     int nrOfCommands;
     int in = STDIN_FILENO;
     int index = 0;
-    int pid;
+    pid_t pid = 0;
     int pidstatus;
+    ssize_t getlinestatus = 0;
 
 
-    sigCatcher(SIGINT);
 
-    do{
-        fflush(stderr);
+    while(1){
         fprintf(stderr, "mish%% ");
         fflush(stderr);
-        getline(&inputLine, &line_size, stdin);
+        if(mySignal(SIGINT, signalCatcher) == SIG_ERR){
+            fprintf(stderr, "Couldn't register signal handler\n");
+            perror("signal");
+            exit(EXIT_FAILURE);
+        }
+        mySignal(SIGINT, SIG_IGN);
+        getlinestatus = getline(&inputLine, &line_size, stdin);
+        if(getlinestatus == -1){
+            break;
+        }
+        //execute internal commands
+        //enter command
+        if(!strcmp(inputLine, "\n")){
+            continue;
+        }
         //parse the inputline into an array of commands
         nrOfCommands = parse(inputLine, comLine);
-        //execute internal commands
         //enter command
         if(!strcmp(inputLine, "\n")){
             continue;
@@ -99,8 +112,12 @@ int main(void){
         }
         //the last or only command
         pid = fork();
+        if(pid != 0){
+            forks[nrOfCommands - 1] = pid;
+        }
         //add the process to an array of processes
-        forks[nrOfCommands - 1] = pid;
+
+        //forks[nrOfCommands - 1] = pid;
         if (pid==0){
             //handle redirect on the only command
             if(nrOfCommands == 1 && comLine[0].infile != NULL) {
@@ -136,17 +153,23 @@ int main(void){
         //wait until all childprocesses has finished executing
         for(index = 0; index < nrOfCommands; index++){
             waitpid(forks[index], &pidstatus, WUNTRACED);
+            forks[index] = 0;
         }
 
-
-    }while(1);
-
+        free(inputLine);
+        line_size = 0;
+        //fprintf(stderr, "mish%% ");
+    }
     return 0;
 }
 
-int forkProcess (int fd[2], int in, int out, command *cmd) {
+pid_t forkProcess (int fd[2], int in, int out, command *cmd) {
     pid_t pid;
-    if((pid = fork()) == 0) {
+    if((pid = fork()) < 0){
+        perror("fork");
+        exit(EXIT_FAILURE);
+    }
+    if(pid == 0){
         //if in is not stdin. ( at the first child it is)
         if (in != STDIN_FILENO) {
             //duplicate stdin to in and close in

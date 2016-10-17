@@ -1,6 +1,10 @@
-#include <stdio.h>
-#include "mish.c"
-#include "parser.h"
+#include <sys/types.h>
+#include <signal.h>
 
+typedef	void Sigfunc(int);
 
-void sigCatcher(int theSignal);
+int kill(pid_t pid, int sig);
+
+void signalCatcher(int theSignal);
+
+Sigfunc* mySignal(int signo, Sigfunc *func);
