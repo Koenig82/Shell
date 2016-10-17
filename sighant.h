@@ -1,3 +1,6 @@
+#include <stdio.h>
+#include "mish.c"
+#include "parser.h"
 
 
-static void sigCatcherUSR1(int theSignal, int nrOfCommands, int forks[]);
+void sigCatcher(int theSignal);

@@ -30,7 +30,7 @@ int main(void){
     int pidstatus;
 
 
-    sigCatcherUSR1(SIGUSR1);
+    sigCatcher(SIGINT);
 
     do{
         fflush(stderr);

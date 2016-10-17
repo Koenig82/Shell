@@ -1,11 +1,16 @@
-#include <stdio.h>
 #include <signal.h>
-#include "main.c"
+#include "parser.h"
+#include "mish.c"
+#include <sys/types.h>
 
-static void sigCatcherUSR1(int theSignal, int nrOfCommands, int forks[]) {
-    if (theSignal == SIGUSR1) {
-        for(int i = 0; i < nrOfCommands; i++){
-
+void sigCatcher(int theSignal){
+    if( theSignal == SIGINT){
+        for(int i = 0; i < MAXCOMMANDS; i++){
+            if(forks[i] != 0){
+                kill(forks[i], SIGINT);
+            }
         }
     }
 }
+
+
