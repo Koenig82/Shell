@@ -1,15 +1,13 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/types.h>
 #include <sys/wait.h>
-#include <bits/stdio.h>
-#include <stdbool.h>
 #include "parser.h"
 #include "execute.h"
+#include "sighant.h"
+
 
 int forkProcess (int fd[2], int in, int out, command *cmd);
 
@@ -31,7 +29,8 @@ int main(void){
     int pid;
     int pidstatus;
 
-    bool redirected = false;
+
+    sigCatcherUSR1(SIGUSR1);
 
     do{
         fflush(stderr);
@@ -69,13 +68,7 @@ int main(void){
         //execute external commands:
         //for each command exept the last one:
         for(index = 0; index < nrOfCommands-1; index++){
-            //close the unsused filedescriptor from the last child
-            /*if(index > 0){
-                if(close(fd[0]) < 0){
-                    perror("close error:");
-                    exit(EXIT_FAILURE);
-                }
-            }*/
+            //handle redirect on the first command
             if(index == 0 && comLine[0].infile != NULL){
                 in = redirect(comLine[0].infile, 0, STDIN_FILENO);
             }
@@ -92,6 +85,7 @@ int main(void){
                     exit(EXIT_FAILURE);
                 }
             }
+            //add the process to an array of processes
             forks[index] = pid;
             /*fprintf(stderr, "Closing fd out %d\n", fd[1]);
             fflush(stderr);*/
@@ -105,20 +99,24 @@ int main(void){
         }
         //the last or only command
         pid = fork();
+        //add the process to an array of processes
         forks[nrOfCommands - 1] = pid;
         if (pid==0){
+            //handle redirect on the only command
             if(nrOfCommands == 1 && comLine[0].infile != NULL) {
+
                 in = redirect(comLine[0].infile, 0, STDIN_FILENO);
-                //redirected = true;
             }
-           else if(comLine[index].outfile != NULL) {
-              fd[1] = redirect(comLine[index].outfile, 1, STDOUT_FILENO);
+            //handle redirect on the only command
+            else if(comLine[index].outfile != NULL) {
 
-                    //duplicate in to stdin and close in
-                    dup2 (fd[1], STDOUT_FILENO);
-                    close(fd[1]);
+                fd[1] = redirect(comLine[index].outfile, 1, STDOUT_FILENO);
 
-           }
+                //duplicate fd[1] to stdout and close fd[1]
+                dup2 (fd[1], STDOUT_FILENO);
+                close(fd[1]);
+
+            }
 
             //if in is not stdin
             if (in != STDIN_FILENO){
@@ -135,6 +133,7 @@ int main(void){
             exit(EXIT_FAILURE);
         }
         //parent process
+        //wait until all childprocesses has finished executing
         for(index = 0; index < nrOfCommands; index++){
             waitpid(forks[index], &pidstatus, WUNTRACED);
         }
