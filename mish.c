@@ -175,7 +175,8 @@ int main(void){
             exit(EXIT_FAILURE);
         }
         //parent process
-        //wait until all childprocesses has finished executing and remove them from pidarray
+        //wait until all childprocesses has finished executing and remove them
+        //from pidarray
         for(index = 0; index < nrOfCommands; index++){
             waitpid(forks[index], &pidstatus, WUNTRACED);
             forks[index] = 0;
