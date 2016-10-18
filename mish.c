@@ -9,8 +9,6 @@
 #include "execute.h"
 #include "sighant.h"
 
-int forkProcess (int fd[2], int in, int out, command *cmd);
-
 pid_t forks[MAXCOMMANDS + 1];
 void signalCatcher(int);
 /*
