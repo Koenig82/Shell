@@ -110,6 +110,9 @@ int main(void){
             if(pid == 0){
                 free(inputLine);
                 line_size = 0;
+            }else{
+                //add the pid to the array of pids
+                forks[index] = pid;
             }
             if(in != 0){
                 if(close(in) < 0){
@@ -117,8 +120,7 @@ int main(void){
                     exit(EXIT_FAILURE);
                 }
             }
-            //add the process to an array of processes
-            forks[index] = pid;
+
             if(close(fd[1]) < 0){
                 perror("close error:");
                 exit(EXIT_FAILURE);
@@ -133,6 +135,7 @@ int main(void){
             exit(EXIT_FAILURE);
         }
         if(pid != 0){
+            //add the pidnr to the pid-array
             forks[nrOfCommands - 1] = pid;
         }
         if (pid==0){
@@ -179,7 +182,14 @@ int main(void){
     }
     return 0;
 }
-
+/*
+ * Function used to fork processes and connect between pipes inside a loop
+ * 
+ * arguments: a piped filedescriptor array(not used), 2 filedescriptors
+ * representing the in and out -end of a pipe and a commandstruct
+ *
+ * returnvalue: the new pid id
+ */
 pid_t forkProcess (int fd[2], int in, int out, command *cmd) {
     pid_t pid;
     if((pid = fork()) < 0){
