@@ -8,6 +8,7 @@
 #include "parser.h"
 #include "execute.h"
 #include "sighant.h"
+#include "mish.h"
 
 pid_t forks[MAXCOMMANDS + 1];
 void signalCatcher(int);
