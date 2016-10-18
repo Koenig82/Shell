@@ -16,11 +16,11 @@ void signalCatcher(int);
 
 int main(void){
 
-    char* inputLine;
+    char* inputLine = NULL;
 
     command comLine[MAXCOMMANDS + 1];
 
-    size_t line_size;
+    size_t line_size = 0;
 
     int fd[2];
 
@@ -29,44 +29,51 @@ int main(void){
     int index = 0;
     pid_t pid = 0;
     int pidstatus;
-    ssize_t getlinestatus = 0;
+    ssize_t getlinestatus;
 
-
+    //initialize signal handler
+    if(signalHandler(SIGINT, signalCatcher) == SIG_ERR){
+        fprintf(stderr, "Error setting signalhandler\n");
+        fflush(stderr);
+        perror("signal");
+        exit(EXIT_FAILURE);
+    }
 
     while(1){
+        //set signalhandler to ignore during prompt
+        signalHandler(SIGINT, SIG_IGN);
+        //print prompt
         fprintf(stderr, "mish%% ");
         fflush(stderr);
-        if(mySignal(SIGINT, signalCatcher) == SIG_ERR){
-            fprintf(stderr, "Couldn't register signal handler\n");
-            perror("signal");
-            exit(EXIT_FAILURE);
-        }
-        mySignal(SIGINT, SIG_IGN);
+
+        //get inpuline
         getlinestatus = getline(&inputLine, &line_size, stdin);
         if(getlinestatus == -1){
             break;
         }
-        //execute internal commands
+        //-----execute internal commands-----
         //enter command
         if(!strcmp(inputLine, "\n")){
-            continue;
-        }
-        //parse the inputline into an array of commands
-        nrOfCommands = parse(inputLine, comLine);
-        //enter command
-        if(!strcmp(inputLine, "\n")){
+            free(inputLine);
+            line_size = 0;
             continue;
         }
         //exit command
         if(!strncmp(inputLine, "exit", 4)){
+            free(inputLine);
+            line_size = 0;
             break;
         }
+        //parse the inputline into an array of commands
+        nrOfCommands = parse(inputLine, comLine);
         //cd command
         if(strcmp(comLine[0].argv[0],"cd") == 0){
             if(chdir(comLine[0].argv[1])!=0){
                 fprintf(stderr, "cd: %s :", comLine[0].argv[1]);
                 perror("");
             }
+            free(inputLine);
+            line_size = 0;
             continue;
         }
         //echo command
@@ -76,10 +83,19 @@ int main(void){
             }
             fprintf(stdout,"\n");
             fflush(stdout);
+            free(inputLine);
+            line_size = 0;
             continue;
         }
-        //execute external commands:
-        //for each command exept the last one:
+        //-------execute external commands------
+        //set signalhandler to check for ctrl+c
+        if(signalHandler(SIGINT, signalCatcher) == SIG_ERR){
+            fprintf(stderr, "Error setting signalhandler\n");
+            fflush(stderr);
+            perror("signal");
+            exit(EXIT_FAILURE);
+        }
+        //for each command exept the last or only one:
         for(index = 0; index < nrOfCommands-1; index++){
             //handle redirect on the first command
             if(index == 0 && comLine[0].infile != NULL){
@@ -88,10 +104,13 @@ int main(void){
 
             //create a pipe with 2 filedescriptors and fork
             pipe(fd);
-
             //the first one will take input from stdin and the rest from the
             //read-end of the pipe
             pid = forkProcess(fd, in, fd[1], &comLine[index]);
+            if(pid == 0){
+                free(inputLine);
+                line_size = 0;
+            }
             if(in != 0){
                 if(close(in) < 0){
                     perror("close error:");
@@ -100,8 +119,6 @@ int main(void){
             }
             //add the process to an array of processes
             forks[index] = pid;
-            /*fprintf(stderr, "Closing fd out %d\n", fd[1]);
-            fflush(stderr);*/
             if(close(fd[1]) < 0){
                 perror("close error:");
                 exit(EXIT_FAILURE);
@@ -111,14 +128,16 @@ int main(void){
 
         }
         //the last or only command
-        pid = fork();
+        if((pid = fork()) < 0){
+            perror("fork error:");
+            exit(EXIT_FAILURE);
+        }
         if(pid != 0){
             forks[nrOfCommands - 1] = pid;
         }
-        //add the process to an array of processes
-
-        //forks[nrOfCommands - 1] = pid;
         if (pid==0){
+            free(inputLine);
+            line_size = 0;
             //handle redirect on the only command
             if(nrOfCommands == 1 && comLine[0].infile != NULL) {
 
@@ -140,8 +159,7 @@ int main(void){
                 //duplicate in to stdin and close in
                 dup2 (in, STDIN_FILENO);
             }
-            /*fprintf(stderr, "Closing fd at end%d\n", in);
-            fflush(stderr);*/
+            //close last in- filedescriptor if not the only command
             if(nrOfCommands != 1 && close(in) < 0){
                 perror("close error:");
                 exit(EXIT_FAILURE);
@@ -150,7 +168,7 @@ int main(void){
             exit(EXIT_FAILURE);
         }
         //parent process
-        //wait until all childprocesses has finished executing
+        //wait until all childprocesses has finished executing and remove them from pidarray
         for(index = 0; index < nrOfCommands; index++){
             waitpid(forks[index], &pidstatus, WUNTRACED);
             forks[index] = 0;
@@ -158,7 +176,6 @@ int main(void){
 
         free(inputLine);
         line_size = 0;
-        //fprintf(stderr, "mish%% ");
     }
     return 0;
 }
@@ -166,7 +183,7 @@ int main(void){
 pid_t forkProcess (int fd[2], int in, int out, command *cmd) {
     pid_t pid;
     if((pid = fork()) < 0){
-        perror("fork");
+        perror("fork error:");
         exit(EXIT_FAILURE);
     }
     if(pid == 0){

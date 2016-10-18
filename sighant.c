@@ -20,7 +20,7 @@ void signalCatcher(int theSignal){
 }
 
 
-Sigfunc * mySignal(int signo, Sigfunc *func) {
+Sigfunc * signalHandler(int signo, Sigfunc *func) {
     struct sigaction act, oact;
 
     act.sa_handler = func;
