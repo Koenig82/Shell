@@ -13,7 +13,12 @@ int forkProcess (int fd[2], int in, int out, command *cmd);
 
 pid_t forks[MAXCOMMANDS + 1];
 void signalCatcher(int);
-
+/*
+ * The mainfunction of the program "mish".
+ * This program creates a small shell with a limited amount of internal
+ * commands and the ability to execute any external command with pipes
+ * and redirects.
+ */
 int main(void){
 
     char* inputLine = NULL;
@@ -184,7 +189,7 @@ int main(void){
 }
 /*
  * Function used to fork processes and connect between pipes inside a loop
- * 
+ *
  * arguments: a piped filedescriptor array(not used), 2 filedescriptors
  * representing the in and out -end of a pipe and a commandstruct
  *

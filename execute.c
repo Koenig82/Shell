@@ -23,8 +23,6 @@ int dupPipe(int pip[2], int end, int destfd){
         perror("close error:");
         return -1;
     }
-    /*fprintf(stderr, "Closing fd %d\n", end);
-    fflush(stderr);*/
     return destfd;
 
 }
