@@ -83,7 +83,10 @@ int main(void){
         //echo command
         if(strcmp(comLine[0].argv[0],"echo") == 0) {
             for (index = 1; index < comLine[0].argc; index++) {
-                fprintf(stdout, "%s ", comLine[0].argv[index]);
+                fprintf(stdout, "%s", comLine[0].argv[index]);
+                if(index < (comLine[0].argc - 1)){
+                    fprintf(stdout, " ");
+                }
             }
             fprintf(stdout,"\n");
             fflush(stdout);
@@ -151,7 +154,7 @@ int main(void){
                 in = redirect(comLine[0].infile, 0, STDIN_FILENO);
             }
             //handle redirect on the only command
-            else if(comLine[index].outfile != NULL) {
+            if(comLine[index].outfile != NULL) {
 
                 fd[1] = redirect(comLine[index].outfile, 1, STDOUT_FILENO);
 
@@ -171,8 +174,11 @@ int main(void){
                 perror("close error:");
                 exit(EXIT_FAILURE);
             }
-            execvp(comLine[index].argv[0], comLine[index].argv);
-            exit(EXIT_FAILURE);
+            if(execvp(comLine[index].argv[0], comLine[index].argv) < 0){
+                perror(comLine[index].argv[0]);
+                fflush(stderr);
+                exit(EXIT_FAILURE);
+            }
         }
         //parent process
         //wait until all childprocesses has finished executing and remove them
@@ -214,8 +220,11 @@ pid_t forkProcess (int fd[2], int in, int out, command *cmd) {
         }
 
         //execute the command
-        execvp(cmd->argv[0], cmd->argv);
-        exit(EXIT_FAILURE);
+        if(execvp(cmd->argv[0], cmd->argv) < 0){
+            perror(cmd->argv[0]);
+            fflush(stderr);
+            exit(EXIT_FAILURE);
+        }
     }
 
     return pid;
